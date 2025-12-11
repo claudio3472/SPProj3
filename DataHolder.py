@@ -11,6 +11,14 @@ def vector_from_scheme(context, scheme, vector):
         return ts.bfv_vector(context, vector)
     else:
         raise ValueError("scheme doesn't exist")
+
+def vector_from_scheme_2(context, scheme, vector):
+    if scheme == "ckks":
+        return ts.ckks_vector_from(context, vector)
+    elif scheme == "bfv":
+        return ts.bfv_vector_from(context, vector)
+    else:
+        raise ValueError("scheme doesn't exist")
     
 def getQuartile(context, scheme, evector, size, index):
     mask = np.zeros(size)
@@ -18,10 +26,10 @@ def getQuartile(context, scheme, evector, size, index):
     if round(index) == index:
         mask[int(index)] = 1
     else:
-        mask[int(np.floor(index))] = 0.5
-        mask[int(np.ceil(index))] = 0.5
+        mask[int(np.floor(index))] = 1
+        mask[int(np.ceil(index))] = 1
         
-    return evector.dot(vector_from_scheme(context, scheme, mask))
+    return evector.dot(mask)
 
 def getQuartiles(context, scheme, evector, size):
     quartile_2_index = (size - 1) / 2
@@ -36,26 +44,35 @@ def getQuartiles(context, scheme, evector, size):
 
 def encrypt(scheme, data_path, server_file_path, encrypted_data_path):
     vector = np.loadtxt(data_path)
-
-     # Maybe should be changed so it doenst complain but it increases time it takes to do stuff
-    poly_modulus = 8192
+    # vector = [3, 4, 1]
+    
+    # Maybe should be changed so it doenst complain but it increases time it takes to do stuff
+    # descobri o significado deste merdas basicamente ciphertext size = poly_modulus / 2
+    # logo a forma para fazer isto dinamico devia se fazer ceil(log2(len(vector))) + 1 seja o
+    # expoente de poly_modulus mas idk talvez devemos flr com a stora em relacao a isso
+    #print(vector.size)
+    poly_modulus = 2 ** max(13, (int(np.ceil(np.log2(vector.size)) + 1)))
+    #print(poly_modulus)
 
     if scheme == 'ckks':
         context = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus, coeff_mod_bit_sizes=[60, 40, 40, 60])
     elif scheme == 'bfv':
-        context = ts.context(ts.SCHEME_TYPE.BFV, poly_modulus_degree=4096, plain_modulus=1032193)
+        poly_modulus = 2**12 # fuck bfv
+        print("\n", poly_modulus, sep="")
+        context = ts.context(ts.SCHEME_TYPE.BFV, poly_modulus_degree=poly_modulus, plain_modulus=1032193, coeff_mod_bit_sizes=[60, 40, 40, 60])
     else:
         eprint("invalid scheme value")
         eprint("only ckks and bfv available")
         return 2
     
-    context.global_scale = pow(2, 40)
+    context.global_scale = 2 ** 40
     context.generate_galois_keys()
     
     evector = vector_from_scheme(context, scheme, vector)
-    
+
     server_file = {
         'scheme': scheme,
+        'size': evector.size(),
         'context': context.serialize(save_secret_key=True),
     }
 
@@ -74,14 +91,16 @@ def encrypt(scheme, data_path, server_file_path, encrypted_data_path):
     with open(encrypted_data_path, 'wb') as f:
         pickle.dump(encrypted_data, f)
     
+    # power = evector ** 2
+    # print(power.decrypt())
     
-    mean = evector.sum() * (1 / evector.size())
-    quartile_1, quartile_2, quartile_3 = getQuartiles(context, scheme, evector, evector.size())
+    # mean = evector.sum()
+    # quartile_1, quartile_2, quartile_3 = getQuartiles(context, scheme, evector, evector.size())
 
-    print("Mean:", mean.decrypt())
-    print("Qua1:", quartile_1.decrypt())
-    print("Qua2:", quartile_2.decrypt())
-    print("Qua3:", quartile_3.decrypt())
+    # print("Mean:", mean.decrypt())
+    # print("Qua1:", quartile_1.decrypt())
+    # print("Qua2:", quartile_2.decrypt())
+    # print("Qua3:", quartile_3.decrypt())
 
     return
     
@@ -94,19 +113,17 @@ def decrypt(server_file_path, encrypted_results_path):
 
     scheme = server_file['scheme']
     context = ts.context_from(server_file['context'])
-    
-    if scheme == 'ckks':
-        for label, evector in encrypted_results.items():
-            result = round(ts.ckks_vector_from(context, evector).decrypt()[0], 4)
-            print(f"{label}: {result}")
-            
-    elif scheme == 'bfv':
-        for label, evector in encrypted_results.items():
-            result = ts.bfv_vector_from(context, evector).decrypt()
-            print(f"{label}: {result}")
-            
-    else:
-        raise ValueError('invalid scheme in file')
+    size = server_file['size']
+
+    mean = round(vector_from_scheme_2(context, scheme, encrypted_results['mean']).decrypt()[0] / size, 4)
+    quartile_1 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 1']).decrypt()[0] / 2, 4)
+    quartile_2 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 2']).decrypt()[0] / 2, 4)
+    quartile_3 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 3']).decrypt()[0] / 2, 4)
+
+    print("mean:", mean)
+    print("quartile 1:", quartile_1)
+    print("quartile 2:", quartile_2)
+    print("quartile 3:", quartile_3)
     
     return
 

@@ -18,10 +18,10 @@ def getQuartile(context, scheme, evector, size, index):
     if round(index) == index:
         mask[int(index)] = 1
     else:
-        mask[int(np.floor(index))] = 0.5
-        mask[int(np.ceil(index))] = 0.5
+        mask[int(np.floor(index))] = 1
+        mask[int(np.ceil(index))] = 1
         
-    return evector.dot(vector_from_scheme(context, scheme, mask))
+    return evector.dot(mask)
 
 def getQuartiles(context, scheme, evector, size):
     quartile_2_index = (size - 1) / 2
@@ -53,7 +53,9 @@ def main(argv):
         eprint('invalid scheme in file')
         return 2
 
-    mean = evector.sum() * (1 / evector.size())
+    
+    
+    mean = evector.dot(vector_from_scheme(context, scheme, np.ones(evector.size())))
     quartile_1, quartile_2, quartile_3 = getQuartiles(context, scheme, evector, evector.size())
 
     encrypted_results = {
