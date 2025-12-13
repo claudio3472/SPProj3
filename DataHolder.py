@@ -57,9 +57,9 @@ def encrypt(scheme, data_path, server_file_path, encrypted_data_path):
     if scheme == 'ckks':
         context = ts.context(ts.SCHEME_TYPE.CKKS, poly_modulus, coeff_mod_bit_sizes=[60, 40, 40, 60])
     elif scheme == 'bfv':
-        poly_modulus = 2**12 # fuck bfv
+        #poly_modulus = 2**12 # fuck bfv
         print("\n", poly_modulus, sep="")
-        context = ts.context(ts.SCHEME_TYPE.BFV, poly_modulus_degree=poly_modulus, plain_modulus=1032193, coeff_mod_bit_sizes=[60, 40, 40, 60])
+        context = ts.context(ts.SCHEME_TYPE.BFV, poly_modulus_degree=poly_modulus, plain_modulus=2013265921, coeff_mod_bit_sizes=[60, 40, 40, 60])
     else:
         eprint("invalid scheme value")
         eprint("only ckks and bfv available")
