@@ -44,13 +44,10 @@ def getQuartiles(context, scheme, evector, size):
 
 def encrypt(scheme, data_path, server_file_path, encrypted_data_path):
     vector = np.loadtxt(data_path)
-    # vector = [3, 4, 1]
+    #vector = [3, 4, 1]
     
-    # Maybe should be changed so it doenst complain but it increases time it takes to do stuff
-    # descobri o significado deste merdas basicamente ciphertext size = poly_modulus / 2
-    # logo a forma para fazer isto dinamico devia se fazer ceil(log2(len(vector))) + 1 seja o
-    # expoente de poly_modulus mas idk talvez devemos flr com a stora em relacao a isso
     #print(vector.size)
+    #poly_modulus = 2 ** 13
     poly_modulus = 2 ** max(13, (int(np.ceil(np.log2(vector.size)) + 1)))
     #print(poly_modulus)
 
@@ -69,6 +66,11 @@ def encrypt(scheme, data_path, server_file_path, encrypted_data_path):
     context.generate_galois_keys()
     
     evector = vector_from_scheme(context, scheme, vector)
+
+    #power = evector * evector
+
+    #print(power.decrypt())
+    #return
 
     server_file = {
         'scheme': scheme,
@@ -116,14 +118,16 @@ def decrypt(server_file_path, encrypted_results_path):
     size = server_file['size']
 
     mean = round(vector_from_scheme_2(context, scheme, encrypted_results['mean']).decrypt()[0] / size, 4)
-    quartile_1 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 1']).decrypt()[0] / 2, 4)
-    quartile_2 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 2']).decrypt()[0] / 2, 4)
-    quartile_3 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 3']).decrypt()[0] / 2, 4)
-
+    quartile_1 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 1'][0]).decrypt()[0] / encrypted_results['quartile 1'][1], 4)
+    quartile_2 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 2'][0]).decrypt()[0] / encrypted_results['quartile 2'][1], 4)
+    quartile_3 = round(vector_from_scheme_2(context, scheme, encrypted_results['quartile 3'][0]).decrypt()[0] / encrypted_results['quartile 3'][1], 4)
+    alz = np.round(np.array(vector_from_scheme_2(context, scheme, encrypted_results['alz']).decrypt())) / 1000
+    
     print("mean:", mean)
     print("quartile 1:", quartile_1)
     print("quartile 2:", quartile_2)
     print("quartile 3:", quartile_3)
+    print("alz:", alz)
     
     return
 

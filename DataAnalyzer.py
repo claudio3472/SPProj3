@@ -14,14 +14,16 @@ def vector_from_scheme(context, scheme, vector):
     
 def getQuartile(context, scheme, evector, size, index):
     mask = np.zeros(size)
-
+    stuff = None
     if round(index) == index:
         mask[int(index)] = 1
+        stuff = 1
     else:
         mask[int(np.floor(index))] = 1
         mask[int(np.ceil(index))] = 1
+        stuff = 2
         
-    return evector.dot(mask)
+    return (evector.dot(mask), stuff)
 
 def getQuartiles(context, scheme, evector, size):
     quartile_2_index = (size - 1) / 2
@@ -57,12 +59,15 @@ def main(argv):
     
     mean = evector.dot(vector_from_scheme(context, scheme, np.ones(evector.size())))
     quartile_1, quartile_2, quartile_3 = getQuartiles(context, scheme, evector, evector.size())
+    temp = evector * 1000
+    alz = temp * temp + 20 * temp
 
     encrypted_results = {
         'mean': mean.serialize(),
-        'quartile 1': quartile_1.serialize(),
-        'quartile 2': quartile_2.serialize(),
-        'quartile 3': quartile_3.serialize(),
+        'quartile 1': (quartile_1[0].serialize(), quartile_1[1]),
+        'quartile 2': (quartile_2[0].serialize(), quartile_2[1]),
+        'quartile 3': (quartile_3[0].serialize(), quartile_3[1]),
+        'alz': alz.serialize(),
     }
 
     with open(argv[2], 'wb') as f:
